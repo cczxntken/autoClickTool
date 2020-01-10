@@ -59,12 +59,14 @@ namespace autosystool
                 tobj.keys = trdstrs.Split(',');
 
                 queList.Add(tobj);
+
+                Console.WriteLine("-----------------------------------------------------------");
             }
            
 
             Console.WriteLine("5S后启动按键循环.");
             System.Threading.Thread.Sleep(5000);
-
+            Console.WriteLine("-----------------------------------------------------------");
             Thread t1 = new Thread(SendThread);
             t1.IsBackground = true;
             
@@ -89,6 +91,7 @@ namespace autosystool
                     for (int i = 0; i < queCount; i++)
                     {
                         queList[i].Run();
+                        Console.WriteLine("=======================================================");
                     }
                 }
                 catch (Exception pE)
