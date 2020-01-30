@@ -4,102 +4,100 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.Runtime.InteropServices;
 using System.Threading;
+using System.IO;
 namespace autosystool
 {
     class Program
     {
-        public class QueObject
+        #region 键盘
+        public event KeyEventHandler KeyDownEvent;
+        public event KeyPressEventHandler KeyPressEvent;
+        public event KeyEventHandler KeyUpEvent;
+
+        public delegate int HookProc(int nCode, Int32 wParam, IntPtr lParam);
+        static int hKeyboardHook = 0; //声明键盘钩子处理的初始值
+        //值在Microsoft SDK的Winuser.h里查询
+        public const int WH_KEYBOARD_LL = 13;   //线程键盘钩子监听鼠标消息设为2，全局键盘监听鼠标消息设为13
+        HookProc KeyboardHookProcedure; //声明KeyboardHookProcedure作为HookProc类型
+        //键盘结构
+        [StructLayout(LayoutKind.Sequential)]
+        public class KeyboardHookStruct
         {
-            public string[] keys = { "", "8", "9" };
-            public int ms = 10000;
-            public int index = 0;
-            public void Run()
-            {
-                Console.WriteLine("index = " + index);
-                for (int i = 0; i < keys.Length; i++)
-                {
-                    SendKeys.SendWait(keys[i]);
-                    Console.WriteLine(keys[i]);
-                    System.Threading.Thread.Sleep(ms);
-                }
-            }
+            public int vkCode;  //定一个虚拟键码。该代码必须有一个价值的范围1至254
+            public int scanCode; // 指定的硬件扫描码的关键
+            public int flags;  // 键标志
+            public int time; // 指定的时间戳记的这个讯息
+            public int dwExtraInfo; // 指定额外信息相关的信息
+        }
+        //使用此功能，安装了一个钩子
+        [DllImport("user32.dll", CharSet = CharSet.Auto, CallingConvention = CallingConvention.StdCall)]
+        public static extern int SetWindowsHookEx(int idHook, HookProc lpfn, IntPtr hInstance, int threadId);
+
+
+        //调用此函数卸载钩子
+        [DllImport("user32.dll", CharSet = CharSet.Auto, CallingConvention = CallingConvention.StdCall)]
+        public static extern bool UnhookWindowsHookEx(int idHook);
+
+
+        //使用此功能，通过信息钩子继续下一个钩子
+        [DllImport("user32.dll", CharSet = CharSet.Auto, CallingConvention = CallingConvention.StdCall)]
+        public static extern int CallNextHookEx(int idHook, int nCode, Int32 wParam, IntPtr lParam);
+
+        // 取得当前线程编号（线程钩子需要用到）
+        [DllImport("kernel32.dll")]
+        static extern int GetCurrentThreadId();
+
+        //使用WINDOWS API函数代替获取当前实例的函数,防止钩子失效
+        [DllImport("kernel32.dll")]
+        public static extern IntPtr GetModuleHandle(string name);
+
+        //ToAscii职能的转换指定的虚拟键码和键盘状态的相应字符或字符
+        [DllImport("user32")]
+        public static extern int ToAscii(int uVirtKey, //[in] 指定虚拟关键代码进行翻译。
+                                         int uScanCode, // [in] 指定的硬件扫描码的关键须翻译成英文。高阶位的这个值设定的关键，如果是（不压）
+                                         byte[] lpbKeyState, // [in] 指针，以256字节数组，包含当前键盘的状态。每个元素（字节）的数组包含状态的一个关键。如果高阶位的字节是一套，关键是下跌（按下）。在低比特，如果设置表明，关键是对切换。在此功能，只有肘位的CAPS LOCK键是相关的。在切换状态的NUM个锁和滚动锁定键被忽略。
+                                         byte[] lpwTransKey, // [out] 指针的缓冲区收到翻译字符或字符。
+                                         int fuState); // [in] Specifies whether a menu is active. This parameter must be 1 if a menu is active, or 0 otherwise.
+
+        //获取按键的状态
+        [DllImport("user32")]
+        public static extern int GetKeyboardState(byte[] pbKeyState);
+
+
+        [DllImport("user32.dll", CharSet = CharSet.Auto, CallingConvention = CallingConvention.StdCall)]
+        private static extern short GetKeyState(int vKey);
+
+        private const int WM_KEYDOWN = 0x100;//KEYDOWN
+        private const int WM_KEYUP = 0x101;//KEYUP
+        private const int WM_SYSKEYDOWN = 0x104;//SYSKEYDOWN
+        private const int WM_SYSKEYUP = 0x105;//SYSKEYUP
+
+        #endregion
+
+        static Program proobj;
+        static ToolObject toolObj;
+        public Program(string[] args)
+        {
         }
 
-        static List<QueObject> queList = new List<QueObject>();
-        static int queCount = 1;
+        ~Program()
+        {
+        }
         static void Main(string[] args)
         {
 
-            Console.WriteLine("启动成功.");
-
-            Console.WriteLine("输入队列数.上限100次");
-            string tmsstr = Console.ReadLine();
-
-            if (!int.TryParse(tmsstr, out queCount))
-            {
-                queCount = 100;
-            }
-            queCount = System.Math.Min(100, queCount);
-
-            for (int i = 0; i < queCount; i++)
-            {
-                QueObject tobj = new QueObject();
-                tobj.index = i;
-                Console.WriteLine(string.Format("输入队列 {0} 间隔.",i));
-                string tms = Console.ReadLine();
-                if (!int.TryParse(tms, out tobj.ms))
-                {
-                    tobj.ms = 1000;
-                }
-                tobj.ms = System.Math.Max(1000, tobj.ms);
-
-                Console.WriteLine(string.Format("输入队列 {0} 按键组,以 , 号分隔.", i));
-                string trdstrs = Console.ReadLine();
-                tobj.keys = trdstrs.Split(',');
-
-                queList.Add(tobj);
-
-                Console.WriteLine("-----------------------------------------------------------");
-            }
-           
-
-            Console.WriteLine("5S后启动按键循环.");
-            System.Threading.Thread.Sleep(5000);
-            Console.WriteLine("-----------------------------------------------------------");
-            Thread t1 = new Thread(SendThread);
-            t1.IsBackground = true;
-            
+            proobj = new Program(args);
+            toolObj = new ToolObject(args);
+            toolObj.Start();
             while (true)
             {
-                if(!t1.IsAlive)
-                {
-                    t1.Start();
-                }
-                System.Threading.Thread.Sleep(1000);
-            }    
-            
+                toolObj.Update();
+                System.Threading.Thread.Sleep(200);
+            }
             //System.Windows.Input.ICommand.
         }
 
-        static void SendThread()
-        {
-            while (true)
-            {
-                try
-                {
-                    for (int i = 0; i < queCount; i++)
-                    {
-                        queList[i].Run();
-                        Console.WriteLine("=======================================================");
-                    }
-                }
-                catch (Exception pE)
-                {
-                    Console.WriteLine(pE.ToString());
-                }
-
-            }
-        }
     }
 }
