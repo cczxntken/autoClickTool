@@ -259,6 +259,7 @@ namespace autosystool
                 catch (Exception pE)
                 {
                     Console.WriteLine(pE.ToString());
+                    System.Threading.Thread.Sleep(2000);
                 }
 
             }
