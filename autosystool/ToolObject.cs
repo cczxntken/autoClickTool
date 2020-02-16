@@ -1,15 +1,23 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Windows.Forms;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.IO;
+using System.Diagnostics;
 namespace autosystool
 {
     public class ToolObject
     {
+        [DllImport("User32.dll")]
+        private static extern bool ShowWindowAsync(IntPtr hWnd, int cmdShow);
+
+        [DllImport("User32.dll")]
+        private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        public static extern void SwitchToThisWindow(IntPtr hWnd, bool fAltTab);
+
 
         [DllImport("user32.dll", EntryPoint = "mouse_event", SetLastError = true)]
         private static extern int mouse_event(int dwFlags, int dx, int dy, int cButtons, int dwExtraInfo);
@@ -65,6 +73,7 @@ namespace autosystool
         List<QueObject> queList = new List<QueObject>();
         int queCount = 1;
         Thread runingThread = null;
+        string proName = "WowClassic";
         public ToolObject(string[] args)
         {
             Console.WriteLine("启动成功.");
@@ -249,12 +258,17 @@ namespace autosystool
                 }
                 try
                 {
-                    for (int i = 0; i < queCount; i++)
+                    Process[] tpros = RuningInstance(proName);
+                    if( tpros.Length > 0)
                     {
-                        if (pause) break;
-                        queList[i].Run();
-                        Console.WriteLine("=======================================================");
+                        foreach (var item in tpros)
+                        {
+                            HandleRunningInstance(item);
+                            GoQue();
+                        }
+                        
                     }
+                    System.Threading.Thread.Sleep(2000);
                 }
                 catch (Exception pE)
                 {
@@ -263,6 +277,28 @@ namespace autosystool
                 }
 
             }
+        }
+
+        void GoQue()
+        {
+            for (int i = 0; i < queCount; i++)
+            {
+                if (pause) break;
+                queList[i].Run();
+                Console.WriteLine("=======================================================");
+            }
+        }
+
+        private static void HandleRunningInstance(Process pIns)
+        {
+            ShowWindowAsync(pIns.MainWindowHandle, 1);//显示
+            SetForegroundWindow(pIns.MainWindowHandle);//当到最前端
+        }
+
+        private static Process[] RuningInstance(string pName)
+        {
+            Process[] Processes = Process.GetProcessesByName(pName);
+            return Processes;
         }
     }
 }
