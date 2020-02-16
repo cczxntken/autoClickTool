@@ -31,7 +31,7 @@ namespace autosystool
                 Console.WriteLine("index = " + index);
                 for (int i = 0; i < keys.Length; i++)
                 {
-                    SendKeys.SendWait(keys[i]);
+                    KeyDown(keys[i]);
                     Console.WriteLine(keys[i]);
                     System.Threading.Thread.Sleep(ms);
                 }
@@ -58,7 +58,7 @@ namespace autosystool
 
             void MouseDown(int pdwflag)
             {
-                mouse_event(pdwflag, 410, 0, 0, 0);
+                mouse_event(pdwflag, 50, 200, 0, 0);
             }
         }
 
